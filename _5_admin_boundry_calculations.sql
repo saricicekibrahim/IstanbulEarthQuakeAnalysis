@@ -111,3 +111,44 @@ update adminb set calc = null
 select COALESCE(population_area, 0) population_area , COALESCE(points_area, 0) points_area,
 COALESCE(building_height_width,0) building_height_width, COALESCE(building_area_area,0) building_area_area,*
 from adminb where admin_level = 10 limit 5
+
+-- calculate mahalle area
+ALTER TABLE public.adminb ADD area float8 NULL;
+update adminb set area = st_area(st_transform(geom, 3857)) / 1000 / 1000 where admin_level = 10
+
+-- calculate number of points
+ALTER TABLE public.adminb ADD num_of_points int NULL;
+UPDATE adminb AS poly
+SET num_of_points = sub.point_count
+FROM (
+    SELECT p.fid,
+           COUNT(pt.*) AS point_count
+    FROM adminb p
+    LEFT JOIN road_points pt
+           ON ST_intersects(p.geom, st_transform(pt.geom, 4326))
+    where p.admin_level = 10
+    GROUP BY p.fid
+) AS sub
+WHERE poly.fid = sub.fid;
+
+ALTER TABLE public.adminb ADD num_buildings int NULL;
+
+ALTER TABLE public.adminb ADD num_buildings int NULL;
+
+ALTER TABLE public.adminb ADD geom3857 geometry NULL;
+
+update adminb set geom3857 = ST_Transform(geom, 3857) where admin_level = 10
+CREATE INDEX idx_build_centroid_geom ON adminb USING GIST(st_centroid(geom));
+
+UPDATE adminb AS poly
+SET num_buildings = sub.point_count
+FROM (
+    SELECT p.fid,
+           COUNT(pt.*) AS point_count
+    FROM adminb p
+    LEFT JOIN buildings_i pt
+           ON ST_intersects(p.geom3857, st_centroid(pt.geom))
+    where p.admin_level = 10
+    GROUP BY p.fid
+) AS sub
+WHERE poly.fid = sub.fid;
