@@ -138,8 +138,11 @@ ALTER TABLE public.adminb ADD num_buildings int NULL;
 ALTER TABLE public.adminb ADD geom3857 geometry NULL;
 
 update adminb set geom3857 = ST_Transform(geom, 3857) where admin_level = 10
-CREATE INDEX idx_build_centroid_geom ON adminb USING GIST(st_centroid(geom));
 
+CREATE INDEX IF NOT EXISTS buildings_i_geom_centroid_idx
+ON public.buildings_i USING gist
+(st_centroid(geom))
+	
 UPDATE adminb AS poly
 SET num_buildings = sub.point_count
 FROM (
